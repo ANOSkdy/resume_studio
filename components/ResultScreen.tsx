@@ -1,5 +1,4 @@
 ﻿"use client";
-import { Button } from "@/components/ui/Button";
 
 export function ResultScreen({ onGeneratePdf, onBack }: {
   onGeneratePdf: (docType: "resume" | "cv") => void;
@@ -9,10 +8,10 @@ export function ResultScreen({ onGeneratePdf, onBack }: {
     <div id="result-section">
       <h2>PDF生成</h2>
       <div style={{ display:"flex", gap:12, marginBottom:16 }}>
-        <Button onClick={() => onGeneratePdf("resume")}>履歴書PDFを生成</Button>
-        <Button onClick={() => onGeneratePdf("cv")}>職務経歴書PDFを生成</Button>
+        <button className="primary-btn" onClick={() => onGeneratePdf("resume")}>履歴書PDFを生成</button>
+        <button className="primary-btn" onClick={() => onGeneratePdf("cv")}>職務経歴書PDFを生成</button>
       </div>
-      <Button variant="secondary" onClick={onBack}>戻る（入力フォームへ）</Button>
+      <button className="secondary-btn" onClick={onBack}>戻る（入力フォームへ）</button>
     </div>
   );
 }

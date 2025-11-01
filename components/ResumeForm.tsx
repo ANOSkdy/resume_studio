@@ -7,15 +7,23 @@ import * as z from "zod";
 import { IResumeFormData } from "@/types";
 import { ResumeFields } from "./ResumeFields";
 import { CvFields } from "./CvFields";
-import { Tabs, TabList, Tab, TabPanel } from "@/components/ui/Tabs";
-import { Button } from "@/components/ui/Button";
 
 const resumeFormSchema = z.object({
   name: z.string().min(1, "氏名は必須です。"),
   name_furigana: z.string().min(1, "ふりがなは必須です。"),
   birth_date: z.string().min(1, "生年月日は必須です。"),
-  history: z.array(z.object({ year: z.string(), month: z.string(), desc: z.string(), status: z.string() })).default([]),
-  qualifications: z.array(z.object({ year: z.string(), month: z.string(), desc: z.string() })).default([]),
+  history: z.array(z.object({
+    year: z.string(),
+    month: z.string(),
+    desc: z.string(),
+    status: z.string(),
+  })).default([]),
+  qualifications: z.array(z.object({
+    year: z.string(),
+    month: z.string(),
+    desc: z.string(),
+  })).default([]),
+
   photo: z.string().nullable().default(null),
   gender: z.enum(["選択しない", "男", "女"]).default("選択しない"),
   address_furigana: z.string().default(""),
@@ -23,24 +31,29 @@ const resumeFormSchema = z.object({
   address_main: z.string().default(""),
   phone: z.string().default(""),
   email: z.string().email("有効なE-mailを入力してください。").or(z.literal("")).default(""),
+
   same_as_current_address: z.boolean().default(true),
   contact_address_furigana: z.string().default(""),
   contact_address_postal_code: z.string().default(""),
   contact_address_main: z.string().default(""),
   contact_phone: z.string().default(""),
   contact_email: z.string().email("有効なE-mailを入力してください。").or(z.literal("")).default(""),
+
   q1_resume: z.string().default(""),
   q2_resume: z.string().default(""),
   q3_resume: z.string().default(""),
   q4_resume: z.string().default(""),
   q5_resume: z.string().default(""),
   generated_resume_pr: z.string().default(""),
+
   special_requests: z.string().default(""),
+
   q1_cv: z.string().default(""),
   q2_cv: z.string().default(""),
   q3_cv: z.string().default(""),
   q4_cv: z.string().default(""),
   q5_cv: z.string().default(""),
+
   generated_cv_summary: z.string().default(""),
   generated_cv_details: z.string().default(""),
   generated_cv_skills: z.string().default(""),
@@ -54,7 +67,8 @@ interface Props {
 }
 
 export function ResumeForm({ onConfirm, setLoading, setLoadingText }: Props) {
-  const [active, setActive] = useState<"resume" | "cv">("resume");
+  const [activeTab, setActiveTab] = useState<"resume" | "cv">("resume");
+
   const methods = useForm<IResumeFormData>({
     resolver: zodResolver(resumeFormSchema),
     defaultValues: {
@@ -76,6 +90,7 @@ export function ResumeForm({ onConfirm, setLoading, setLoadingText }: Props) {
     }
     const processedHistory = data.history.map(h => ({ ...h, desc: `${h.desc} ${h.status}`.trim() }));
     const processedQualifications = data.qualifications.map(q => ({ ...q, desc: q.desc ? `${q.desc} 取得` : "" }));
+
     onConfirm({ ...data, history: processedHistory, qualifications: processedQualifications });
   };
 
@@ -89,24 +104,22 @@ export function ResumeForm({ onConfirm, setLoading, setLoadingText }: Props) {
   return (
     <FormProvider {...methods}>
       <div id="form-section">
-        <Tabs defaultValue={active}>
-          <div className="tabs">
-            <TabList>
-              <Tab value="resume">履歴書</Tab>
-              <Tab value="cv">職務経歴書</Tab>
-            </TabList>
-          </div>
-          <TabPanel value="resume">
-            <ResumeFields setLoading={setLoading} setLoadingText={setLoadingText} />
-          </TabPanel>
-          <TabPanel value="cv">
-            <CvFields setLoading={setLoading} setLoadingText={setLoadingText} />
-          </TabPanel>
-        </Tabs>
+        <div className="tab-container">
+          <button type="button" id="tab-resume-btn" className={`tab-btn ${activeTab === "resume" ? "active" : ""}`} onClick={() => setActiveTab("resume")}>履歴書</button>
+          <button type="button" id="tab-cv-btn" className={`tab-btn ${activeTab === "cv" ? "active" : ""}`} onClick={() => setActiveTab("cv")}>職務経歴書</button>
+        </div>
 
-        <Button type="button" variant="primary" id="confirm-btn" onClick={handleConfirmClick}>
+        <div style={{ display: activeTab === "resume" ? "block" : "none" }}>
+          <ResumeFields setLoading={setLoading} setLoadingText={setLoadingText} />
+        </div>
+
+        <div style={{ display: activeTab === "cv" ? "block" : "none" }}>
+          <CvFields setLoading={setLoading} setLoadingText={setLoadingText} />
+        </div>
+
+        <button type="button" id="confirm-btn" className="primary-btn" onClick={handleConfirmClick}>
           入力内容を確定してPDF生成へ
-        </Button>
+        </button>
       </div>
     </FormProvider>
   );

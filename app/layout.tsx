@@ -8,11 +8,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja" className="theme-green">
-      <body>
-        <a href="#main" className="skip-link">本文へスキップ</a>
-        <main id="main" role="main">{children}</main>
-      </body>
+    <html lang="ja">
+      <body>{children}</body>
     </html>
   );
 }
