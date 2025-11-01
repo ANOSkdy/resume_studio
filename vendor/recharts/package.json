@@ -1,0 +1,14 @@
+{
+  "name": "recharts",
+  "version": "0.0.0-local",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.cjs"
+    }
+  },
+  "main": "index.cjs",
+  "module": "index.js",
+  "types": "index.d.ts"
+}
