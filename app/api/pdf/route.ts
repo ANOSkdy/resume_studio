@@ -91,22 +91,40 @@ async function handleRequest(request: NextRequest): Promise<Response> {
   registerNotoSansJp();
 
   const element = React.createElement(template.component, { data: resolvedPayload });
-  const buffer = await renderToBuffer(element);
-  const bufferView = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-  const arrayBuffer = new ArrayBuffer(bufferView.byteLength);
-  const byteArray = new Uint8Array(arrayBuffer);
-  byteArray.set(bufferView);
-  const pdfBlob = new Blob([byteArray], { type: "application/pdf" });
 
-  return new Response(pdfBlob, {
+  let buffer: Uint8Array;
+  try {
+    const rendered = await renderToBuffer(element);
+    buffer = rendered instanceof Uint8Array ? rendered : new Uint8Array(rendered as ArrayBufferLike);
+  } catch (error: any) {
+    console.error("[pdf] render error", {
+      template: template.key,
+      message: error?.message,
+      stack: error?.stack,
+    });
+    return NextResponse.json(
+      { error: "PDFテンプレートのレンダリングに失敗しました。" },
+      { status: 500 },
+    );
+  }
+
+  const normalizedBuffer =
+    buffer.byteOffset === 0 && buffer.byteLength === buffer.buffer.byteLength
+      ? buffer
+      : buffer.slice();
+  const arrayBuffer = normalizedBuffer.buffer.slice(0) as ArrayBuffer;
+
+  const pdfResponse = new NextResponse(arrayBuffer, {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Length": String(byteArray.length),
+      "Content-Length": String(normalizedBuffer.byteLength ?? 0),
       "Content-Disposition": `inline; filename=${template.key}.pdf`,
       "Cache-Control": "no-store",
     },
   });
+
+  return pdfResponse;
 }
 
 export async function GET(request: NextRequest) {

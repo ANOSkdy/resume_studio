@@ -18,5 +18,5 @@ declare module "@react-pdf/renderer" {
     register: (options: any) => void;
   };
 
-  export function renderToBuffer(element: ReactElement): Promise<Buffer>;
+  export function renderToBuffer(element: ReactElement): Promise<Uint8Array>;
 }
