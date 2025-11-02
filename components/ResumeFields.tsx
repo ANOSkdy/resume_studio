@@ -9,7 +9,34 @@ import { generateAiTextAction } from "@/app/actions";
 
 export function ResumeFields({ setLoading, setLoadingText }: { setLoading: (b: boolean) => void; setLoadingText: (t: string) => void; }) {
   const { register, watch, setValue, formState: { errors } } = useFormContext<IResumeFormData>();
-  const resumeQuestionFields = ["q1_resume", "q2_resume", "q3_resume", "q4_resume", "q5_resume"] as const;
+  const resumeQuestions: Array<{
+    field: "q1_resume" | "q2_resume" | "q3_resume" | "q4_resume" | "q5_resume";
+    title: string;
+    helper?: string;
+  }> = [
+    {
+      field: "q1_resume",
+      title: "1. 直近1〜2年であなたが主導して成果を出した出来事を1つ（S/T/A/Rを含めて）",
+      helper: "状況・課題・行動・結果をひと続きのストーリーとしてまとめ、可能であれば数値など客観的な指標も記入してください。"
+    },
+    {
+      field: "q2_resume",
+      title: "2. 同僚や顧客が挙げる、あなたの強みTop3は？（裏付けとなる行動例も含めて）",
+      helper: "強みとその根拠となる具体的な行動を一緒に記載してください。"
+    },
+    {
+      field: "q3_resume",
+      title: "3. あなたが最も力を発揮できる環境・役割・相手は？避けたい条件があれば併記してください。"
+    },
+    {
+      field: "q4_resume",
+      title: "4. 困難を乗り越えた経験から得た行動原則（口癖・ルール）は？"
+    },
+    {
+      field: "q5_resume",
+      title: "5. 今後1年で誰に／何の価値を／どの水準で提供したい？そのために既に行っている学習・実践もあれば記入してください。"
+    }
+  ];
 
   const handleGeneratePR = async () => {
     const q = [
@@ -219,13 +246,23 @@ export function ResumeFields({ setLoading, setLoadingText }: { setLoading: (b: b
 
       <fieldset>
         <legend>AI自己PR</legend>
-        <div className="form-grid form-grid-md-2">
-          {resumeQuestionFields.map((fieldName, idx) => {
-            const questionId = `resume-${fieldName}`;
+        <div className="resume-question-stack">
+          {resumeQuestions.map(({ field, title, helper }, idx) => {
+            const questionId = `resume-${field}`;
+            const helperId = helper ? `${questionId}-helper` : undefined;
             return (
-              <div key={fieldName}>
-                <label className="sr-only-important" htmlFor={questionId}>{`AI自己PR Q${idx + 1}`}</label>
-                <textarea id={questionId} rows={3} placeholder={`Q${idx + 1}`} {...register(fieldName)} />
+              <div key={field} className="resume-question-item">
+                <label htmlFor={questionId} className="resume-question-label">{title}</label>
+                {helper && (
+                  <p id={helperId} className="resume-question-helper">{helper}</p>
+                )}
+                <textarea
+                  id={questionId}
+                  rows={helper ? 5 : 4}
+                  aria-describedby={helperId}
+                  placeholder={`Q${idx + 1}の回答を入力してください。`}
+                  {...register(field)}
+                />
               </div>
             );
           })}
