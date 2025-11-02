@@ -1,4 +1,4 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 import { Buffer } from "node:buffer";
 import { render as renderResumeBasic } from "../../pdf/templates/resume/basic";
 import { render as renderCvBasic } from "../../pdf/templates/cv/basic";
@@ -6,8 +6,9 @@ import { render as renderDebug } from "../../pdf/templates/_debug";
 
 type PdfType = "resume" | "cv";
 type PdfTemplate = "basic" | string;
-type PdfRenderer = (data: unknown) =>
-  Promise<Uint8Array | ArrayBuffer | Buffer> | Uint8Array | ArrayBuffer | Buffer;
+type PdfRenderer = (
+  data: unknown
+) => Promise<Uint8Array | ArrayBuffer | Buffer> | Uint8Array | ArrayBuffer | Buffer;
 
 type Payload = { type?: PdfType; template?: PdfTemplate; data?: unknown; name?: string };
 
@@ -25,6 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(405).json({ error: "Method Not Allowed. Use POST." });
       return;
     }
+
     let body: Payload | string | null = req.body as any;
     if (typeof body === "string") { try { body = JSON.parse(body); } catch {} }
 
@@ -36,6 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       "resume:basic": renderResumeBasic,
       "cv:basic": renderCvBasic,
     };
+
     const key = `${type}:${template}`;
     const renderer = table[key] ?? renderDebug;
 
