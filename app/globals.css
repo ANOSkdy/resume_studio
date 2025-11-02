@@ -309,6 +309,18 @@ textarea:focus-visible {
   background: #fff;
 }
 
+.cv-answers-note {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.cv-answers-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
 @media (max-width: 480px) {
   .cv-question-field {
     padding: 12px;
@@ -320,6 +332,14 @@ textarea:focus-visible {
 
   .cv-question-help {
     font-size: 0.75rem;
+  }
+
+  .cv-answers-actions {
+    justify-content: stretch;
+  }
+
+  .cv-answers-actions .secondary-btn {
+    width: 100%;
   }
 }
 
