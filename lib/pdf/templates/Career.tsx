@@ -1,7 +1,7 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, StyleSheet } from "@react-pdf/renderer";
 import type { ResumePdfPayload } from "../schema";
-import { txt } from "../txt";
+import { SafeText, t } from "../SafeText";
 
 const styles = StyleSheet.create({
   page: {
@@ -60,9 +60,14 @@ const styles = StyleSheet.create({
 const EMPTY = "-";
 
 function toText(value: unknown, fallback = ""): string {
-  const raw = txt(value).trim();
+  const raw = t(value).trim();
   return raw.length > 0 ? raw : fallback;
 }
+
+const logSection = (section: string): null => {
+  console.info(`[pdf][career] section=${section}`);
+  return null;
+};
 
 const CareerTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
   const nameText = toText(data.name, "職務経歴書");
@@ -81,50 +86,57 @@ const CareerTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
         .filter(Boolean)
     : [];
 
+  console.info("[pdf][career] section=HEADER");
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.title}>{txt(nameText)}</Text>
-          <Text style={styles.subtitle}>{txt(summaryText || EMPTY)}</Text>
+          <SafeText style={styles.title}>{t(nameText)}</SafeText>
+          <SafeText style={styles.subtitle}>{t(summaryText || EMPTY)}</SafeText>
         </View>
 
+        {logSection("CONTACT")}
         <View style={styles.meta}>
-          <Text style={styles.label}>{txt("連絡先")}</Text>
-          <Text style={styles.paragraph}>
-            {txt(`${phoneText}${phoneText && emailText ? " / " : ""}${emailText}` || EMPTY)}
-          </Text>
+          <SafeText style={styles.label}>{t("連絡先")}</SafeText>
+          <SafeText style={styles.paragraph}>
+            {t(`${phoneText}${phoneText && emailText ? " / " : ""}${emailText}` || EMPTY)}
+          </SafeText>
         </View>
 
+        {logSection("SUMMARY")}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{txt("サマリー")}</Text>
-          <Text style={styles.paragraph}>{txt(summaryText || EMPTY)}</Text>
+          <SafeText style={styles.sectionTitle}>{t("サマリー")}</SafeText>
+          <SafeText style={styles.paragraph}>{t(summaryText || EMPTY)}</SafeText>
         </View>
 
+        {logSection("HISTORY")}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{txt("職務経歴")}</Text>
-          <Text style={styles.paragraph}>{txt(detailsText || EMPTY)}</Text>
+          <SafeText style={styles.sectionTitle}>{t("職務経歴")}</SafeText>
+          <SafeText style={styles.paragraph}>{t(detailsText || EMPTY)}</SafeText>
         </View>
 
+        {logSection("SKILLS")}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{txt("スキル")}</Text>
+          <SafeText style={styles.sectionTitle}>{t("スキル")}</SafeText>
           {skillLines.length > 0 ? (
             <View style={styles.bulletList}>
               {skillLines.map((line, index) => (
                 <View key={`skill-${index}`} style={styles.bulletItem}>
-                  <Text style={styles.bulletSymbol}>{txt("•")}</Text>
-                  <Text style={styles.paragraph}>{txt(line)}</Text>
+                  <SafeText style={styles.bulletSymbol}>{t("•")}</SafeText>
+                  <SafeText style={styles.paragraph}>{t(line)}</SafeText>
                 </View>
               ))}
             </View>
           ) : (
-            <Text style={styles.paragraph}>{txt(fallbackSkills)}</Text>
+            <SafeText style={styles.paragraph}>{t(fallbackSkills)}</SafeText>
           )}
         </View>
 
+        {logSection("PR")}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{txt("自己PR")}</Text>
-          <Text style={styles.paragraph}>{txt(prText)}</Text>
+          <SafeText style={styles.sectionTitle}>{t("自己PR")}</SafeText>
+          <SafeText style={styles.paragraph}>{t(prText)}</SafeText>
         </View>
       </Page>
     </Document>

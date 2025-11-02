@@ -1,7 +1,7 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, StyleSheet } from "@react-pdf/renderer";
 import type { ResumePdfPayload } from "../schema";
-import { txt } from "../txt";
+import { SafeText, t } from "../SafeText";
 
 const styles = StyleSheet.create({
   page: {
@@ -83,13 +83,18 @@ const styles = StyleSheet.create({
 const EMPTY = "-";
 
 function toText(value: unknown, fallback = ""): string {
-  const raw = txt(value).trim();
+  const raw = t(value).trim();
   return raw.length > 0 ? raw : fallback;
 }
 
+const logSection = (section: string): null => {
+  console.info(`[pdf][resume] section=${section}`);
+  return null;
+};
+
 function formatDate(year: unknown, month: unknown) {
-  const y = txt(toText(year)).trim();
-  const m = txt(toText(month)).trim();
+  const y = t(toText(year)).trim();
+  const m = t(toText(month)).trim();
   if (!y && !m) return EMPTY;
   if (!y) return `${m}月`;
   if (!m) return `${y}年`;
@@ -107,8 +112,8 @@ const InfoRow = ({ label, value }: { label: string; value: unknown }) => {
   const text = toText(value, EMPTY);
   return (
     <View style={{ marginBottom: 4 }}>
-      <Text style={styles.label}>{txt(label)}</Text>
-      <Text style={styles.value}>{txt(text || EMPTY)}</Text>
+      <SafeText style={styles.label}>{t(label)}</SafeText>
+      <SafeText style={styles.value}>{t(text || EMPTY)}</SafeText>
     </View>
   );
 };
@@ -117,8 +122,8 @@ const ParagraphBlock = ({ title, value }: { title: string; value: unknown }) => 
   const text = toText(value, EMPTY) || EMPTY;
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{txt(title)}</Text>
-      <Text style={styles.paragraph}>{txt(text)}</Text>
+      <SafeText style={styles.sectionTitle}>{t(title)}</SafeText>
+      <SafeText style={styles.paragraph}>{t(text)}</SafeText>
     </View>
   );
 };
@@ -140,14 +145,17 @@ const ResumeTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
 
   const resumePr = toText(data.generated_resume_pr) || toText(data.q3_resume);
 
+  console.info("[pdf][resume] section=HEADER");
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.name}>{txt(toText(data.name, "氏名未設定"))}</Text>
-          <Text style={styles.kana}>{txt(toText(data.name_furigana))}</Text>
+          <SafeText style={styles.name}>{t(toText(data.name, "氏名未設定"))}</SafeText>
+          <SafeText style={styles.kana}>{t(toText(data.name_furigana))}</SafeText>
         </View>
 
+        {logSection("PROFILE")}
         <View style={styles.twoColumn}>
           <View style={styles.column}>
             <InfoRow label="生年月日" value={data.birth_date} />
@@ -163,10 +171,11 @@ const ResumeTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
           </View>
         </View>
 
+        {logSection("HISTORY")}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{txt("学歴・職歴")}</Text>
+          <SafeText style={styles.sectionTitle}>{t("学歴・職歴")}</SafeText>
           {historyItems.length === 0 ? (
-            <Text style={styles.paragraph}>{txt(EMPTY)}</Text>
+            <SafeText style={styles.paragraph}>{t(EMPTY)}</SafeText>
           ) : (
             historyItems.map((entry, index) => {
               const descText = toText(entry?.desc);
@@ -174,31 +183,33 @@ const ResumeTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
               const bodyText = `${descText}${statusText ? `（${statusText}）` : ""}`.trim();
               return (
                 <View key={`history-${index}`} style={styles.listItem}>
-                  <Text style={styles.listDate}>{txt(formatDate(entry?.year, entry?.month))}</Text>
-                  <Text style={styles.listBody}>{txt(bodyText || EMPTY)}</Text>
+                  <SafeText style={styles.listDate}>{t(formatDate(entry?.year, entry?.month))}</SafeText>
+                  <SafeText style={styles.listBody}>{t(bodyText || EMPTY)}</SafeText>
                 </View>
               );
             })
           )}
         </View>
 
+        {logSection("QUALIFICATIONS")}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{txt("資格・免許")}</Text>
+          <SafeText style={styles.sectionTitle}>{t("資格・免許")}</SafeText>
           {qualificationItems.length === 0 ? (
-            <Text style={styles.paragraph}>{txt(EMPTY)}</Text>
+            <SafeText style={styles.paragraph}>{t(EMPTY)}</SafeText>
           ) : (
             qualificationItems.map((entry, index) => {
               const descText = toText(entry?.desc);
               return (
                 <View key={`qualification-${index}`} style={styles.listItem}>
-                  <Text style={styles.listDate}>{txt(formatDate(entry?.year, entry?.month))}</Text>
-                  <Text style={styles.listBody}>{txt(descText || EMPTY)}</Text>
+                  <SafeText style={styles.listDate}>{t(formatDate(entry?.year, entry?.month))}</SafeText>
+                  <SafeText style={styles.listBody}>{t(descText || EMPTY)}</SafeText>
                 </View>
               );
             })
           )}
         </View>
 
+        {logSection("ESSAYS")}
         <ParagraphBlock title="志望動機" value={data.q1_resume} />
         <ParagraphBlock title="長所・短所" value={data.q2_resume} />
         <ParagraphBlock title="自己PR" value={resumePr} />
