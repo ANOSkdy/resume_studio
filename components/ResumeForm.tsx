@@ -57,7 +57,8 @@ const resumeFormSchema = z.object({
   generated_cv_summary: z.string().default(""),
   generated_cv_details: z.string().default(""),
   generated_cv_skills: z.string().default(""),
-  generated_cv_pr: z.string().default("")
+  generated_cv_pr: z.string().default(""),
+  generated_cv_speciality: z.string().default("")
 });
 
 interface Props {

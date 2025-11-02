@@ -53,4 +53,5 @@ export interface IResumeFormData {
   generated_cv_details: string;
   generated_cv_skills: string;
   generated_cv_pr: string;
+  generated_cv_speciality: string;
 }
