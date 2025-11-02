@@ -1,25 +1,36 @@
 ﻿name: CI
+
 on:
-  pull_request:
   push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
           cache: 'pnpm'
-      - name: Enable Corepack and pin pnpm
-        shell: bash
+
+      - name: Enable corepack & pnpm@10
         run: |
           corepack enable
           corepack prepare pnpm@10.0.0 --activate
           pnpm -v
+
       - name: Install
         run: pnpm install --frozen-lockfile
-      - name: Typecheck
-        run: pnpm typecheck
+
       - name: Build
         run: pnpm build
+
+      - name: Typecheck
+        run: pnpm run -r --if-present typecheck
