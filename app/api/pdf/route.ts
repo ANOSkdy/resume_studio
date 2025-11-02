@@ -50,16 +50,17 @@ export async function POST(req: NextRequest) {
   };
 
   const pdfBytes = await renderer(payloadForTemplate);
-  const bodyBytes =
-    pdfBytes instanceof Uint8Array
-      ? pdfBytes
+  const responseBuffer = Buffer.isBuffer(pdfBytes)
+    ? pdfBytes
+    : pdfBytes instanceof Uint8Array
+      ? Buffer.from(pdfBytes)
       : pdfBytes instanceof ArrayBuffer
-        ? new Uint8Array(pdfBytes)
-        : Buffer.isBuffer(pdfBytes)
-          ? new Uint8Array(pdfBytes)
-          : new Uint8Array();
+        ? Buffer.from(new Uint8Array(pdfBytes))
+        : Buffer.alloc(0);
 
-  return new NextResponse(bodyBytes, {
+  const responseBody = Uint8Array.from(responseBuffer).buffer;
+
+  return new NextResponse(responseBody, {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
