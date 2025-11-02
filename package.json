@@ -20,5 +20,9 @@
                             "@types/node":  "^20.14.11",
                             "@types/react":  "^18.3.2",
                             "@types/react-dom":  "^18.3.0"
-                        }
+                        },
+    "packageManager":  "pnpm@10.0.0",
+    "engines":  {
+                    "node":  "\u003e=20"
+                }
 }
