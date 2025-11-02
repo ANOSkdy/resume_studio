@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 
+import { ChangeEvent } from "react";
 import { useFormContext } from "react-hook-form";
 import { IResumeFormData } from "@/types";
 import { generateAiTextAction } from "@/app/actions";
@@ -7,6 +8,23 @@ import { generateAiTextAction } from "@/app/actions";
 export function CvFields({ setLoading, setLoadingText }: { setLoading: (b: boolean) => void; setLoadingText: (t: string) => void; }) {
   const { register, watch, setValue } = useFormContext<IResumeFormData>();
   const cvQuestionFields = ["q1_cv", "q2_cv", "q3_cv", "q4_cv", "q5_cv"] as const;
+  const q1Value = watch("q1_cv");
+  const q2Value = watch("q2_cv");
+  const q3Value = watch("q3_cv");
+  const q4Value = watch("q4_cv");
+  const q5Value = watch("q5_cv");
+
+  const handleCvFieldChange = (
+    field: (typeof cvQuestionFields)[number]
+  ) =>
+    (
+      event: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
+    ) => {
+      setValue(field, event.target.value, {
+        shouldDirty: true,
+        shouldTouch: true
+      });
+    };
 
   const handleGenerateCV = async () => {
     const q = [watch("q1_cv"), watch("q2_cv"), watch("q3_cv"), watch("q4_cv"), watch("q5_cv")]
@@ -35,6 +53,119 @@ export function CvFields({ setLoading, setLoadingText }: { setLoading: (b: boole
 
   return (
     <form onSubmit={(e) => e.preventDefault()}>
+      <span
+        aria-hidden="true"
+        style={{ display: "none" }}
+        dangerouslySetInnerHTML={{ __html: "<!-- CV_QUESTIONS:BEGIN -->" }}
+      />
+      <section
+        className="cv-questions-stack"
+        aria-labelledby="cv-questions-title"
+      >
+        <h2 id="cv-questions-title" className="cv-questions-heading">
+          職務経歴書入力（5つの質問）
+        </h2>
+
+        <div className="cv-question-field">
+          <label htmlFor="q1-cv" className="cv-question-label">
+            1) 経歴概要 <span aria-hidden="true" className="cv-required-indicator">*</span>
+          </label>
+          <p id="q1-cv-help" className="cv-question-help">
+            3〜5行想定。経験年数／担当領域／規模感／強みなど。
+          </p>
+          <textarea
+            id="q1-cv"
+            name="q1-cv"
+            required
+            aria-required="true"
+            aria-describedby="q1-cv-help"
+            rows={4}
+            value={q1Value || ""}
+            onChange={handleCvFieldChange("q1_cv")}
+            className="cv-question-input"
+          />
+        </div>
+
+        <div className="cv-question-field">
+          <label htmlFor="q2-cv" className="cv-question-label">
+            2) 職務経験の詳細 <span aria-hidden="true" className="cv-required-indicator">*</span>
+          </label>
+          <p id="q2-cv-help" className="cv-question-help">
+            プロジェクト／役割／期間／規模／担当範囲など。
+          </p>
+          <textarea
+            id="q2-cv"
+            name="q2-cv"
+            required
+            aria-required="true"
+            aria-describedby="q2-cv-help"
+            rows={6}
+            value={q2Value || ""}
+            onChange={handleCvFieldChange("q2_cv")}
+            className="cv-question-input"
+          />
+        </div>
+
+        <div className="cv-question-field">
+          <label htmlFor="q3-cv" className="cv-question-label">
+            3) 定量的な実績（任意）
+          </label>
+          <p id="q3-cv-help" className="cv-question-help">
+            例: 売上+15%／コスト▲12%／工数-30h/月 等
+          </p>
+          <textarea
+            id="q3-cv"
+            name="q3-cv"
+            aria-describedby="q3-cv-help"
+            rows={3}
+            value={q3Value || ""}
+            onChange={handleCvFieldChange("q3_cv")}
+            className="cv-question-input"
+          />
+        </div>
+
+        <div className="cv-question-field">
+          <label htmlFor="q4-cv" className="cv-question-label">
+            4) 他者評価（任意）
+          </label>
+          <p id="q4-cv-help" className="cv-question-help">
+            上司/同僚/顧客からの評価や表彰など。
+          </p>
+          <textarea
+            id="q4-cv"
+            name="q4-cv"
+            aria-describedby="q4-cv-help"
+            rows={3}
+            value={q4Value || ""}
+            onChange={handleCvFieldChange("q4_cv")}
+            className="cv-question-input"
+          />
+        </div>
+
+        <div className="cv-question-field">
+          <label htmlFor="q5-cv" className="cv-question-label">
+            5) 専門分野（任意）
+          </label>
+          <p id="q5-cv-help" className="cv-question-help">
+            得意領域やスキル群（カンマ区切り可）。
+          </p>
+          <input
+            id="q5-cv"
+            name="q5-cv"
+            aria-describedby="q5-cv-help"
+            value={q5Value || ""}
+            onChange={handleCvFieldChange("q5_cv")}
+            className="cv-question-input"
+            type="text"
+          />
+        </div>
+      </section>
+      <span
+        aria-hidden="true"
+        style={{ display: "none" }}
+        dangerouslySetInnerHTML={{ __html: "<!-- CV_QUESTIONS:END -->" }}
+      />
+
       <fieldset>
         <legend>AI入力</legend>
         <div className="form-grid form-grid-md-2">
