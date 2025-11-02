@@ -136,6 +136,27 @@ function resolveValue(value: unknown, context: PlaceholderContext): unknown {
   return value ?? "";
 }
 
+function forcePlainValue(value: unknown): unknown {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => forcePlainValue(item));
+  }
+  if (isReactElement(value)) {
+    return extractTextFromReactElement(value) || "";
+  }
+  if (value && typeof value === "object") {
+    const next: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value)) {
+      next[key] = forcePlainValue(nested);
+    }
+    return next;
+  }
+  return "";
+}
+
 function coerceText(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "string") return value;
@@ -157,8 +178,10 @@ function coerceText(value: unknown): string {
 
 export function resolvePayloadPlaceholders(payload: ResumePdfPayload): ResumePdfPayload {
   const resolved = resolveValue(payload, payload) as ResumePdfPayload;
-  const sanitizedHistory = Array.isArray(resolved.history)
-    ? resolved.history
+  const plainResolved = forcePlainValue(resolved) as ResumePdfPayload;
+  const typedPlain = plainResolved as ResumePdfPayload;
+  const sanitizedHistory = Array.isArray(typedPlain.history)
+    ? typedPlain.history
         .map((entry: HistoryEntry) => ({
           year: coerceText(entry?.year),
           month: coerceText(entry?.month),
@@ -168,8 +191,8 @@ export function resolvePayloadPlaceholders(payload: ResumePdfPayload): ResumePdf
         .filter((entry: HistoryEntry) => !isPrimitiveEmpty(entry))
     : [];
 
-  const sanitizedQualifications = Array.isArray(resolved.qualifications)
-    ? resolved.qualifications
+  const sanitizedQualifications = Array.isArray(typedPlain.qualifications)
+    ? typedPlain.qualifications
         .map((entry: QualificationEntry) => ({
           year: coerceText(entry?.year),
           month: coerceText(entry?.month),
@@ -179,7 +202,7 @@ export function resolvePayloadPlaceholders(payload: ResumePdfPayload): ResumePdf
     : [];
 
   return {
-    ...resolved,
+    ...typedPlain,
     history: sanitizedHistory,
     qualifications: sanitizedQualifications,
   };
