@@ -1,15 +1,9 @@
 import { PDFDocument, rgb } from "pdf-lib";
-import fontkit from "@pdf-lib/fontkit";
-import path from "node:path";
-import { readFile } from "node:fs/promises";
+import { loadJapaneseFont } from "./_font";
 
 export async function render(data: any): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  doc.registerFontkit(fontkit);
-
-  const fontPath = path.join(process.cwd(), "public", "fonts", "NotoSansJP-Regular.ttf");
-  const fontBytes = await readFile(fontPath);
-  const jp = await doc.embedFont(fontBytes, { subset: true });
+  const jp = await loadJapaneseFont(doc);
 
   const page = doc.addPage([595.28, 841.89]); // A4
   let y = 780;

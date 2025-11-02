@@ -1,4 +1,3 @@
-// pages/api/pdf.ts  ←この内容で全置換
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Buffer } from "node:buffer";
 import { render as renderResumeBasic } from "../../pdf/templates/resume/basic";
@@ -29,9 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     let body: Payload | string | null = req.body as any;
-    if (typeof body === "string") {
-      try { body = JSON.parse(body); } catch { /* ignore */ }
-    }
+    if (typeof body === "string") { try { body = JSON.parse(body); } catch {} }
 
     const type = normalizeType((body as any)?.type);
     const template = normalizeTemplate((body as any)?.template);

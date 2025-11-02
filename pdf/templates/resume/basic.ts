@@ -1,7 +1,5 @@
 import { PDFDocument, rgb } from "pdf-lib";
-import fontkit from "@pdf-lib/fontkit";
-import path from "node:path";
-import { readFile } from "node:fs/promises";
+import { loadJapaneseFont } from "../_font";
 
 type Contacts = { email?: string; phone?: string; address?: string };
 type Education = { school?: string; degree?: string; period?: string };
@@ -14,21 +12,18 @@ export async function render(data: any): Promise<Uint8Array> {
   const jobs: Job[] = Array.isArray(data?.jobs) ? data.jobs : [];
 
   const doc = await PDFDocument.create();
-  doc.registerFontkit(fontkit);
-  const fontPath = path.join(process.cwd(), "public", "fonts", "NotoSansJP-Regular.ttf");
-  const fontBytes = await readFile(fontPath);
-  const jp = await doc.embedFont(fontBytes, { subset: true });
+  const jp = await loadJapaneseFont(doc);
 
   const page = doc.addPage([595.28, 841.89]); // A4
   const black = rgb(0, 0, 0);
   let y = 800;
   const left = 60;
 
-  // Header
   page.drawText("履歴書 / Resume", { x: left, y, size: 22, font: jp, color: black });
   y -= 34;
   page.drawText(name, { x: left, y, size: 18, font: jp, color: black });
   y -= 22;
+
   const contactsLine = [
     contacts.email && `Email: ${contacts.email}`,
     contacts.phone && `Tel: ${contacts.phone}`,
@@ -39,7 +34,6 @@ export async function render(data: any): Promise<Uint8Array> {
   }
   y -= 28;
 
-  // Education
   page.drawText("学歴 / Education", { x: left, y, size: 14, font: jp, color: black });
   y -= 18;
   if (!educations.length) {
@@ -52,7 +46,6 @@ export async function render(data: any): Promise<Uint8Array> {
   }
   y -= 10;
 
-  // Work Experience
   page.drawText("職歴 / Work Experience", { x: left, y, size: 14, font: jp, color: black });
   y -= 18;
   if (!jobs.length) {
