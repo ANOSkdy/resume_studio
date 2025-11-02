@@ -3,6 +3,7 @@ import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { resolveTemplate } from "@/lib/pdf/template-registry";
 import { pdfRequestBodySchema, resumePayloadSchema } from "@/lib/pdf/schema";
+import type { ResumePdfPayload } from "@/lib/pdf/schema";
 import { resolvePayloadPlaceholders } from "@/lib/pdf/placeholder";
 import { registerNotoSansJp } from "@/lib/pdf/fonts/notoSansJp";
 
@@ -73,24 +74,38 @@ async function handleRequest(request: NextRequest): Promise<Response> {
 
   const resolvedPayload = resolvePayloadPlaceholders(payloadData);
 
+  let normalizedPayload: ResumePdfPayload;
+  try {
+    normalizedPayload = resumePayloadSchema.parse(resolvedPayload);
+  } catch (error: any) {
+    const issues = Array.isArray(error?.issues) ? error.issues : [];
+    const message =
+      error?.name === "ZodError" && issues.length > 0 ? issues[0]?.message ?? "Invalid payload" : "Invalid payload";
+    console.error("[pdf] normalization error", {
+      template: template.key,
+      message,
+    });
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
   console.info("[pdf] render", {
     template: template.key,
     debug: isDebug,
-    name: resolvedPayload.name,
-    historyCount: resolvedPayload.history.length,
-    qualificationCount: resolvedPayload.qualifications.length,
+    name: normalizedPayload.name,
+    historyCount: normalizedPayload.history.length,
+    qualificationCount: normalizedPayload.qualifications.length,
   });
 
   if (isDebug) {
     return NextResponse.json({
       template: template.key,
-      payload: resolvedPayload,
+      payload: normalizedPayload,
     });
   }
 
   registerNotoSansJp();
 
-  const element = React.createElement(template.component, { data: resolvedPayload });
+  const element = React.createElement(template.component, { data: normalizedPayload });
 
   let buffer: Uint8Array;
   try {
