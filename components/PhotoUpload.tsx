@@ -20,9 +20,9 @@ export function PhotoUpload() {
 
   return (
     <div>
-      <label>証明写真</label>
-      <input type="file" accept="image/*" onChange={onFileChange} />
-      {photo ? <img className="photo-preview" src={photo} alt="photo preview" /> : null}
+      <label htmlFor="photo-upload">証明写真</label>
+      <input id="photo-upload" className="touch-target" type="file" accept="image/*" onChange={onFileChange} />
+      {photo ? <img className="photo-preview" src={photo} alt="証明写真のプレビュー" /> : null}
     </div>
   );
 }
