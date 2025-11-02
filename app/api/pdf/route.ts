@@ -23,6 +23,28 @@ function badRequest(msg = "Bad Request") {
   return new NextResponse(msg, { status: 400 });
 }
 
+function normString(v: unknown): string {
+  if (v == null) return "";
+  try {
+    return String(v).trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function normalizeType(v: unknown): PdfType {
+  const s = normString(v);
+  if (s === "cv") return "cv";
+  return "resume";
+}
+
+function normalizeTemplate(v: unknown): PdfTemplate {
+  const s = normString(v);
+  if (!s || s === "true" || s === "false") return "basic";
+  if (s === "default" || s === "std" || s === "standard") return "basic";
+  return s as PdfTemplate;
+}
+
 export async function POST(req: NextRequest) {
   let body: Payload | null = null;
   try {
@@ -31,8 +53,8 @@ export async function POST(req: NextRequest) {
     return badRequest("Invalid JSON");
   }
 
-  const type = (body?.type ?? "resume") as PdfType;
-  const template = (body?.template ?? "basic") as PdfTemplate;
+  const type = normalizeType(body?.type);
+  const template = normalizeTemplate(body?.template);
   const data = body?.data ?? {};
 
   const table: Record<string, PdfRenderer> = {
