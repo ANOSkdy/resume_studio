@@ -44,6 +44,13 @@ curl "http://localhost:3000/api/pdf?type=resume&debug=1"
 
 サーバーログには `type`・`debug` フラグ・主要フィールド数が INFO レベルで出力されます。Vercel などのホスティングでも原因追跡に利用できます。
 
+## デプロイ設定メモ
+
+- Vercel の Install Command を `pnpm install --no-frozen-lockfile` に固定しています。
+  - Why: `package.json` への依存追加時にロックファイルとの差分があると Preview デプロイが失敗するため（CI 環境で `--frozen-lockfile` がデフォルト）。
+  - Impact: 依存更新時にロックファイルを自動生成しつつビルドが継続します（インストール時間がわずかに増える程度）。
+  - Rollback: `vercel.json` の `installCommand` を削除すれば従来の `pnpm install --frozen-lockfile` に戻せます。
+
 ## サンプルデータ
 
 - `examples/pdf/resume.sample.json`
