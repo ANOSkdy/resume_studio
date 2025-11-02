@@ -393,6 +393,27 @@ button:disabled {
   }
 }
 
+.resume-question-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.resume-question-item textarea {
+  margin-top: 8px;
+}
+
+.resume-question-label {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.resume-question-helper {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
 .page-transition {
   min-height: 100dvh;
 }
