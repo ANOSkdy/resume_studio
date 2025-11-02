@@ -1,0 +1,17 @@
+{
+  "type": "career",
+  "payload": {
+    "name": "山田 太郎",
+    "phone": "03-1234-5678",
+    "email": "taro.yamada@example.com",
+    "generated_cv_summary": "新規事業の立ち上げからグロースまでを横断して推進。チームマネジメントとUX改善に強み。",
+    "generated_cv_details": "プロダクト責任者としてロードマップ策定、スクラム運用、品質改善を担当し、継続率を20%向上。",
+    "generated_cv_skills": "プロジェクトマネジメント\nユーザーリサーチ\nReact / Next.js\nTypeScript / Node.js",
+    "generated_cv_pr": "課題解決と人材育成を両立し、成果を出し続ける仕組みづくりに寄与しました。",
+    "q1_cv": "SaaS領域での開発経験が豊富です。",
+    "q2_cv": "開発チームとビジネスチームの橋渡しをしてきました。",
+    "q3_cv": "AWS、GCP、CI/CD、スクラムマスター",
+    "q4_cv": "メンターとして若手育成に取り組んでいます。",
+    "q5_cv": "業務外ではOSSにも貢献しています。"
+  }
+}

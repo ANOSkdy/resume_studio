@@ -1,0 +1,39 @@
+{
+  "type": "resume",
+  "payload": {
+    "name": "山田 太郎",
+    "name_furigana": "やまだ たろう",
+    "birth_date": "1990年4月1日",
+    "gender": "男",
+    "address_postal_code": "1000001",
+    "address_main": "東京都千代田区千代田1-1",
+    "phone": "03-1234-5678",
+    "email": "taro.yamada@example.com",
+    "same_as_current_address": true,
+    "history": [
+      { "year": "2009", "month": "04", "desc": "東京大学", "status": "入学" },
+      { "year": "2013", "month": "03", "desc": "東京大学", "status": "卒業" },
+      { "year": "2013", "month": "04", "desc": "株式会社テック", "status": "入社" }
+    ],
+    "qualifications": [
+      { "year": "2015", "month": "06", "desc": "基本情報技術者" },
+      { "year": "2018", "month": "11", "desc": "TOEIC 850" }
+    ],
+    "q1_resume": "エンジニアとしてプロダクトの価値を高めることに注力してきました。",
+    "q2_resume": "長所は粘り強さ、短所は完璧を求めすぎる点です。",
+    "q3_resume": "プロジェクトマネジメントとチームビルディングが得意です。",
+    "q4_resume": "通勤時間は約40分、最寄り駅は東京駅です。",
+    "q5_resume": "配偶者あり、扶養家族1名。",
+    "generated_resume_pr": "課題発見から改善までをリードし、継続的な成果創出に貢献してきました。",
+    "special_requests": "面接は平日18時以降でお願いしたいです。",
+    "q1_cv": "プロダクト開発の上流工程から携わってきました。",
+    "q2_cv": "大規模プロジェクトでのマネジメント経験があります。",
+    "q3_cv": "React、TypeScript、Node.js、GCP",
+    "q4_cv": "チームマネジメントや採用にも関与してきました。",
+    "q5_cv": "副業でコミュニティ運営を行っています。",
+    "generated_cv_summary": "Webサービスの企画・開発を8年以上リード。UX向上と品質改善に強み。",
+    "generated_cv_details": "プロダクトロードマップ策定からスクラムによる開発推進まで一貫して担当。",
+    "generated_cv_skills": "React / Next.js\nTypeScript / Node.js\nGCP / Firebase\nスクラムマスター",
+    "generated_cv_pr": "ユーザー視点での改善提案とチームビルディングで持続的な成果を生み出しました。"
+  }
+}

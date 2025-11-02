@@ -5,13 +5,28 @@ import { ResumeForm } from "@/components/ResumeForm";
 import { ResultScreen } from "@/components/ResultScreen";
 import { LoadingModal } from "@/components/LoadingModal";
 import { IResumeFormData } from "@/types";
-import { generatePdfAction } from "@/app/actions";
 
-function openPdfForPreview(base64Data: string) {
-  const byteCharacters = atob(base64Data);
-  const byteNumbers = Array.from(byteCharacters, c => c.charCodeAt(0));
-  const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type: "application/pdf" });
+async function requestPdf(templateType: "resume" | "career", payload: IResumeFormData) {
+  const response = await fetch("/api/pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: templateType, payload }),
+  });
+
+  if (!response.ok) {
+    const contentType = response.headers.get("Content-Type") ?? "";
+    if (contentType.includes("application/json")) {
+      const error = await response.json();
+      throw new Error(error?.error || "PDF生成APIの呼び出しに失敗しました。");
+    }
+    const text = await response.text();
+    throw new Error(text || "PDF生成APIの呼び出しに失敗しました。");
+  }
+
+  return await response.blob();
+}
+
+function openPdfForPreview(blob: Blob) {
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank");
   setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -36,8 +51,9 @@ export default function Home() {
     setLoadingText("PDFを生成中です...");
     setIsLoading(true);
     try {
-      const base64Pdf = await generatePdfAction(confirmedData, documentType);
-      openPdfForPreview(base64Pdf);
+      const templateType = documentType === "cv" ? "career" : "resume";
+      const pdfBlob = await requestPdf(templateType, confirmedData);
+      openPdfForPreview(pdfBlob);
     } catch (e: any) {
       console.error(e);
       alert(`PDFの生成に失敗しました。\n${e?.message || e}`);

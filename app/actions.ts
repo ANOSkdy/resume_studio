@@ -1,7 +1,5 @@
 ﻿"use server";
 
-import { IResumeFormData } from "@/types";
-
 export async function generateAiTextAction(prompt: string): Promise<string> {
   const API_KEY = process.env.GEMINI_API_KEY;
   if (!API_KEY) throw new Error("Gemini APIキーが設定されていません。");
@@ -40,31 +38,3 @@ export async function generateAiTextAction(prompt: string): Promise<string> {
   return String(text).trim();
 }
 
-export async function generatePdfAction(
-  formData: IResumeFormData,
-  documentType: "resume" | "cv"
-): Promise<string> {
-  const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL;
-  if (!GAS_WEB_APP_URL) throw new Error("GAS Web App URLが設定されていません。");
-
-  const payload = {
-    action: "generatePdfFromDoc",
-    formData,
-    documentType
-  };
-
-  const res = await fetch(GAS_WEB_APP_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    redirect: "follow",
-    cache: "no-store"
-  });
-
-  if (!res.ok) throw new Error(`GAS Web App エラー (コード: ${res.status})`);
-
-  const result = await res.json() as any;
-  if (result?.status === "success" && result?.base64Pdf) return result.base64Pdf;
-
-  throw new Error(`PDF生成失敗: ${result?.message || "不明なエラー"}`);
-}
