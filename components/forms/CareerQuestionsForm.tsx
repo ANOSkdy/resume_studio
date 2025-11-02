@@ -147,6 +147,9 @@ export default function CareerQuestionsForm({ initial }: { initial?: Partial<Car
         <h2 id="q2" className="text-lg font-semibold">
           2) 直近ポジションの基本情報
         </h2>
+        <p className="text-sm text-gray-600">
+          会社名・在籍期間・雇用形態・役職・チーム規模など、直近ポジションの概要が一目で伝わるように記載してください。
+        </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="companyName" className="block text-sm font-medium">
@@ -313,6 +316,9 @@ export default function CareerQuestionsForm({ initial }: { initial?: Partial<Car
         <h2 id="q3" className="text-lg font-semibold">
           3) 主要責務・技術・成果物
         </h2>
+        <p className="text-sm text-gray-600">
+          日々の業務内容を3〜6行で箇条書きし、成果物や使用技術は重複なく簡潔にまとめてください。
+        </p>
         <div>
           <label htmlFor="responsibilities" className="block text-sm font-medium">
             責務（3〜6行・改行区切り）
@@ -371,6 +377,9 @@ export default function CareerQuestionsForm({ initial }: { initial?: Partial<Car
         <h2 id="q4" className="text-lg font-semibold">
           4) 成果エピソード（最大3件）
         </h2>
+        <p className="text-sm text-gray-600">
+          各エピソードで「目標→行動→結果→数値」を明記し、担当した役割（IC/Lead/Mgr）を添えてください。
+        </p>
         {ACHIEVEMENT_FIELD_SETS.map(({ index, keys }) => (
           <fieldset key={index} className="space-y-2 rounded border border-gray-200 p-3">
             <legend className="text-sm font-medium">エピソード {index}</legend>
@@ -422,6 +431,9 @@ export default function CareerQuestionsForm({ initial }: { initial?: Partial<Car
         <h2 id="q5" className="text-lg font-semibold">
           5) 志向と提供価値（1年）
         </h2>
+        <p className="text-sm text-gray-600">
+          今後1年で挑戦したい職種・業界、働き方、誰にどんな価値をどの水準で提供できるかと、その根拠を整理してください。
+        </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="targetRoles" className="block text-sm font-medium">
