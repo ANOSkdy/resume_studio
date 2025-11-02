@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { ResumePdfPayload } from "../schema";
+import { txt } from "../txt";
 
 const styles = StyleSheet.create({
   page: {
@@ -59,19 +60,8 @@ const styles = StyleSheet.create({
 const EMPTY = "-";
 
 function toText(value: unknown, fallback = ""): string {
-  if (value === null || value === undefined) return fallback;
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : fallback;
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  if (Array.isArray(value)) {
-    const joined = value.map(item => toText(item, "")).filter(Boolean).join(" ");
-    return joined || fallback;
-  }
-  return fallback;
+  const raw = txt(value).trim();
+  return raw.length > 0 ? raw : fallback;
 }
 
 const CareerTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
@@ -95,44 +85,46 @@ const CareerTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.title}>{nameText}</Text>
-          <Text style={styles.subtitle}>{summaryText || EMPTY}</Text>
+          <Text style={styles.title}>{txt(nameText)}</Text>
+          <Text style={styles.subtitle}>{txt(summaryText || EMPTY)}</Text>
         </View>
 
         <View style={styles.meta}>
-          <Text style={styles.label}>連絡先</Text>
-          <Text style={styles.paragraph}>{`${phoneText}${phoneText && emailText ? " / " : ""}${emailText}` || EMPTY}</Text>
+          <Text style={styles.label}>{txt("連絡先")}</Text>
+          <Text style={styles.paragraph}>
+            {txt(`${phoneText}${phoneText && emailText ? " / " : ""}${emailText}` || EMPTY)}
+          </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>サマリー</Text>
-          <Text style={styles.paragraph}>{summaryText || EMPTY}</Text>
+          <Text style={styles.sectionTitle}>{txt("サマリー")}</Text>
+          <Text style={styles.paragraph}>{txt(summaryText || EMPTY)}</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>職務経歴</Text>
-          <Text style={styles.paragraph}>{detailsText || EMPTY}</Text>
+          <Text style={styles.sectionTitle}>{txt("職務経歴")}</Text>
+          <Text style={styles.paragraph}>{txt(detailsText || EMPTY)}</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>スキル</Text>
+          <Text style={styles.sectionTitle}>{txt("スキル")}</Text>
           {skillLines.length > 0 ? (
             <View style={styles.bulletList}>
               {skillLines.map((line, index) => (
                 <View key={`skill-${index}`} style={styles.bulletItem}>
-                  <Text style={styles.bulletSymbol}>•</Text>
-                  <Text style={styles.paragraph}>{line}</Text>
+                  <Text style={styles.bulletSymbol}>{txt("•")}</Text>
+                  <Text style={styles.paragraph}>{txt(line)}</Text>
                 </View>
               ))}
             </View>
           ) : (
-            <Text style={styles.paragraph}>{fallbackSkills}</Text>
+            <Text style={styles.paragraph}>{txt(fallbackSkills)}</Text>
           )}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>自己PR</Text>
-          <Text style={styles.paragraph}>{prText}</Text>
+          <Text style={styles.sectionTitle}>{txt("自己PR")}</Text>
+          <Text style={styles.paragraph}>{txt(prText)}</Text>
         </View>
       </Page>
     </Document>

@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { ResumePdfPayload } from "../schema";
+import { txt } from "../txt";
 
 const styles = StyleSheet.create({
   page: {
@@ -82,32 +83,23 @@ const styles = StyleSheet.create({
 const EMPTY = "-";
 
 function toText(value: unknown, fallback = ""): string {
-  if (value === null || value === undefined) return fallback;
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : fallback;
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  if (Array.isArray(value)) {
-    const joined = value.map(item => toText(item, "")).filter(Boolean).join(" ");
-    return joined || fallback;
-  }
-  return fallback;
+  const raw = txt(value).trim();
+  return raw.length > 0 ? raw : fallback;
 }
 
 function formatDate(year: unknown, month: unknown) {
-  const y = toText(year);
-  const m = toText(month);
+  const y = txt(toText(year)).trim();
+  const m = txt(toText(month)).trim();
   if (!y && !m) return EMPTY;
   if (!y) return `${m}月`;
   if (!m) return `${y}年`;
   return `${y}年${m}月`;
 }
 
-function formatAddress(postal: string, address: string) {
-  const line = `${postal ? `〒${postal} ` : ""}${address}`.trim();
+function formatAddress(postal: string | undefined, address: string | undefined) {
+  const postalText = toText(postal);
+  const addressText = toText(address);
+  const line = `${postalText ? `〒${postalText} ` : ""}${addressText}`.trim();
   return line || EMPTY;
 }
 
@@ -115,8 +107,8 @@ const InfoRow = ({ label, value }: { label: string; value: unknown }) => {
   const text = toText(value, EMPTY);
   return (
     <View style={{ marginBottom: 4 }}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{text || EMPTY}</Text>
+      <Text style={styles.label}>{txt(label)}</Text>
+      <Text style={styles.value}>{txt(text || EMPTY)}</Text>
     </View>
   );
 };
@@ -125,8 +117,8 @@ const ParagraphBlock = ({ title, value }: { title: string; value: unknown }) => 
   const text = toText(value, EMPTY) || EMPTY;
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.paragraph}>{text}</Text>
+      <Text style={styles.sectionTitle}>{txt(title)}</Text>
+      <Text style={styles.paragraph}>{txt(text)}</Text>
     </View>
   );
 };
@@ -152,8 +144,8 @@ const ResumeTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.name}>{toText(data.name, "氏名未設定")}</Text>
-          <Text style={styles.kana}>{toText(data.name_furigana)}</Text>
+          <Text style={styles.name}>{txt(toText(data.name, "氏名未設定"))}</Text>
+          <Text style={styles.kana}>{txt(toText(data.name_furigana))}</Text>
         </View>
 
         <View style={styles.twoColumn}>
@@ -172,9 +164,9 @@ const ResumeTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>学歴・職歴</Text>
+          <Text style={styles.sectionTitle}>{txt("学歴・職歴")}</Text>
           {historyItems.length === 0 ? (
-            <Text style={styles.paragraph}>{EMPTY}</Text>
+            <Text style={styles.paragraph}>{txt(EMPTY)}</Text>
           ) : (
             historyItems.map((entry, index) => {
               const descText = toText(entry?.desc);
@@ -182,8 +174,8 @@ const ResumeTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
               const bodyText = `${descText}${statusText ? `（${statusText}）` : ""}`.trim();
               return (
                 <View key={`history-${index}`} style={styles.listItem}>
-                  <Text style={styles.listDate}>{formatDate(entry?.year, entry?.month)}</Text>
-                  <Text style={styles.listBody}>{bodyText || EMPTY}</Text>
+                  <Text style={styles.listDate}>{txt(formatDate(entry?.year, entry?.month))}</Text>
+                  <Text style={styles.listBody}>{txt(bodyText || EMPTY)}</Text>
                 </View>
               );
             })
@@ -191,16 +183,16 @@ const ResumeTemplate: React.FC<{ data: ResumePdfPayload }> = ({ data }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>資格・免許</Text>
+          <Text style={styles.sectionTitle}>{txt("資格・免許")}</Text>
           {qualificationItems.length === 0 ? (
-            <Text style={styles.paragraph}>{EMPTY}</Text>
+            <Text style={styles.paragraph}>{txt(EMPTY)}</Text>
           ) : (
             qualificationItems.map((entry, index) => {
               const descText = toText(entry?.desc);
               return (
                 <View key={`qualification-${index}`} style={styles.listItem}>
-                  <Text style={styles.listDate}>{formatDate(entry?.year, entry?.month)}</Text>
-                  <Text style={styles.listBody}>{descText || EMPTY}</Text>
+                  <Text style={styles.listDate}>{txt(formatDate(entry?.year, entry?.month))}</Text>
+                  <Text style={styles.listBody}>{txt(descText || EMPTY)}</Text>
                 </View>
               );
             })
