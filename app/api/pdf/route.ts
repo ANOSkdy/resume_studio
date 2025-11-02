@@ -10,7 +10,6 @@ import { z } from "zod";
 
 import { Buffer } from "node:buffer";
 
-import { render as renderDebug } from "@/pdf/templates/_debug";
 import { render as renderCvBasic } from "@/pdf/templates/cv/basic";
 import { render as renderResumeBasic } from "@/pdf/templates/resume/basic";
 
@@ -27,12 +26,17 @@ const noCacheHeaders = {
   Pragma: "no-cache",
 };
 
+const withNoStoreHeaders = (extra: Record<string, string> = {}) => ({
+  ...noCacheHeaders,
+  ...extra,
+});
+
 const PayloadSchema = z
   .object({
     type: z.union([z.string(), z.null()]).optional(),
     template: z.union([z.string(), z.null()]).optional(),
     data: z.record(z.any()).optional(),
-    name: z.string().optional(),
+    name: z.string().trim().min(1).optional(),
   })
   .passthrough();
 
@@ -88,10 +92,7 @@ const rendererTable: Record<string, PdfRenderer> = {
 const jsonResponse = (body: Record<string, unknown>, status: number) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: {
-      "Content-Type": "application/json",
-      ...noCacheHeaders,
-    },
+    headers: withNoStoreHeaders({ "Content-Type": "application/json" }),
   });
 
 function toUint8Array(pdfBytes: Awaited<ReturnType<PdfRenderer>>): Uint8Array {
@@ -107,17 +108,7 @@ function toUint8Array(pdfBytes: Awaited<ReturnType<PdfRenderer>>): Uint8Array {
   return new Uint8Array();
 }
 
-export async function POST(req: NextRequest) {
-  console.log("[PDF] start", { url: req.nextUrl.pathname, search: req.nextUrl.search });
-
-  let payload: unknown;
-  try {
-    payload = await req.json();
-  } catch {
-    console.warn("[PDF] invalid JSON body");
-    return jsonResponse({ error: "INVALID_JSON" }, 400);
-  }
-
+async function handleGenerate(payload: unknown) {
   const parsed = PayloadSchema.safeParse(payload);
   if (!parsed.success) {
     console.warn("[PDF] payload schema error", parsed.error.issues);
@@ -127,12 +118,11 @@ export async function POST(req: NextRequest) {
   const raw = parsed.data;
   const type = normalizeType(raw.type);
   const template = normalizeTemplate(raw.template);
-  const isDebug = req.nextUrl.searchParams.get("__debug_test") === "1";
 
   const rendererKey = `${type}:${template}`;
   const renderer = rendererTable[rendererKey];
 
-  if (!renderer && !isDebug) {
+  if (!renderer) {
     console.warn("[PDF] unsupported template", { rendererKey });
     return jsonResponse({ error: "UNSUPPORTED_TEMPLATE", template, type }, 422);
   }
@@ -144,33 +134,93 @@ export async function POST(req: NextRequest) {
     return FONT_ERROR_RESPONSE;
   }
 
-  const name = typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : "";
+  const name = typeof raw.name === "string" ? raw.name : undefined;
   const data = raw.data ?? {};
 
   const payloadForTemplate = {
     ...(typeof data === "object" && data !== null ? data : {}),
     __meta: { type, template, generatedAt: new Date().toISOString() },
-    name,
+    name: name ?? "",
   } as Record<string, unknown>;
 
-  const chosenRenderer = renderer ?? renderDebug;
-
   try {
-    const pdfBytes = await chosenRenderer(payloadForTemplate);
+    const pdfBytes = await renderer(payloadForTemplate);
     const buffer = toUint8Array(pdfBytes);
     const body = buffer.slice().buffer;
-    const safeName = name ? name.replace(/[^a-z0-9\-_.]/gi, "_") : type;
+    const safeName = (name ?? type).replace(/[^a-z0-9\-_.]/gi, "_") || type;
 
     return new Response(body, {
       status: 200,
-      headers: {
+      headers: withNoStoreHeaders({
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="${safeName || "resume"}.pdf"`,
-        ...noCacheHeaders,
-      },
+        "x-rs-pdf-path": "live",
+      }),
     });
   } catch (error: any) {
     console.error("[PDF] generation failed", error?.message ?? error);
     return jsonResponse({ error: "PDF_GENERATION_FAILED" }, 500);
   }
+}
+
+export async function POST(req: NextRequest) {
+  console.log("[PDF] start", {
+    method: "POST",
+    url: req.nextUrl.pathname,
+    search: req.nextUrl.search,
+  });
+
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    console.warn("[PDF] invalid JSON body");
+    return jsonResponse({ error: "INVALID_JSON" }, 400);
+  }
+
+  return handleGenerate(payload);
+}
+
+export async function GET(req: NextRequest) {
+  console.log("[PDF] start", {
+    method: "GET",
+    url: req.nextUrl.pathname,
+    search: req.nextUrl.search,
+  });
+
+  const { searchParams } = req.nextUrl;
+  const payloadB64 = searchParams.get("payload");
+
+  if (payloadB64) {
+    try {
+      const jsonString = Buffer.from(payloadB64, "base64").toString("utf8");
+      const parsed = JSON.parse(jsonString);
+      return handleGenerate(parsed);
+    } catch (error) {
+      console.warn("[PDF] invalid payload base64", error);
+      return jsonResponse({ error: "INVALID_PAYLOAD_BASE64" }, 400);
+    }
+  }
+
+  const type = searchParams.get("type") ?? undefined;
+  const template = searchParams.get("template") ?? undefined;
+  const nameParam = searchParams.get("name") ?? undefined;
+  const name = nameParam && nameParam.trim() ? nameParam : undefined;
+
+  const dataEntries = Array.from(searchParams.entries())
+    .filter(([key]) => key.startsWith("data."))
+    .reduce<Record<string, unknown>>((acc, [key, value]) => {
+      const dataKey = key.slice("data.".length);
+      if (dataKey) {
+        acc[dataKey] = value;
+      }
+      return acc;
+    }, {});
+
+  return handleGenerate({
+    type,
+    template,
+    name,
+    data: Object.keys(dataEntries).length ? dataEntries : undefined,
+  });
 }
