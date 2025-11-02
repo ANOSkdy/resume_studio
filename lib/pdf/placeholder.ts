@@ -9,35 +9,67 @@ type PlaceholderContext = Record<string, unknown>;
 
 const PLACEHOLDER_REGEX = /{{\s*([^{}]+?)\s*}}/g;
 
+function hasReactLikeMarker(value: Record<string, unknown>): boolean {
+  if (!("$$typeof" in value)) return false;
+  const marker = (value as any).$$typeof;
+  if (marker === REACT_ELEMENT_TYPE) return true;
+  if (typeof marker === "string") {
+    const normalized = marker.toLowerCase();
+    return normalized.includes("react.element");
+  }
+  return false;
+}
+
 function isReactElement(value: unknown): value is { props?: Record<string, unknown> } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "$$typeof" in (value as Record<string, unknown>) &&
-    (value as any).$$typeof === REACT_ELEMENT_TYPE
-  );
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  if (hasReactLikeMarker(candidate)) {
+    return true;
+  }
+
+  if (typeof candidate.type === "string" && typeof candidate.props === "object") {
+    return true;
+  }
+
+  return false;
 }
 
 function extractTextFromReactElement(element: any): string {
   if (!element || typeof element !== "object") return "";
-  const children = element.props?.children;
+
+  const props = (element as any).props ?? {};
+  const children = props.children;
+
   if (children === null || children === undefined) return "";
   if (typeof children === "string") return children;
-  if (typeof children === "number" || typeof children === "boolean") return String(children);
+  if (typeof children === "number" || typeof children === "boolean") {
+    return String(children);
+  }
+
   if (Array.isArray(children)) {
     return children
       .map(child => {
         if (typeof child === "string") return child;
         if (typeof child === "number" || typeof child === "boolean") return String(child);
         if (isReactElement(child)) return extractTextFromReactElement(child);
+        if (child && typeof child === "object") return extractTextFromReactElement({ props: { children: child } });
         return "";
       })
       .filter(Boolean)
       .join("");
   }
+
   if (isReactElement(children)) {
     return extractTextFromReactElement(children);
   }
+
+  if (typeof children === "object") {
+    return extractTextFromReactElement({ props: { children } });
+  }
+
   return "";
 }
 
@@ -116,6 +148,9 @@ function coerceText(value: unknown): string {
   }
   if (isReactElement(value)) {
     return extractTextFromReactElement(value) || "";
+  }
+  if (value && typeof value === "object") {
+    return extractTextFromReactElement({ props: { children: value } }) || "";
   }
   return "";
 }
