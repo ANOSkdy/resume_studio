@@ -1,19 +1,26 @@
+type ChromiumWithOptionalViewport = typeof import("@sparticuz/chromium").default & {
+  defaultViewport?: import("puppeteer-core").Viewport;
+};
+
 export async function htmlToPdf(html: string) {
   let browser: any;
 
   try {
-    // サーバ（Vercel等）
-    const chromium = (await import("@sparticuz/chromium")).default;
+    const chromiumModule = await import("@sparticuz/chromium");
+    const chromium = chromiumModule.default as ChromiumWithOptionalViewport;
     const puppeteer = (await import("puppeteer-core")).default;
-    browser = await puppeteer.launch({
+    const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
       args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
       headless: true,
-      ignoreHTTPSErrors: true,
-    });
+    };
+
+    if (chromium.defaultViewport) {
+      launchOptions.defaultViewport = chromium.defaultViewport;
+    }
+
+    browser = await puppeteer.launch(launchOptions);
   } catch {
-    // ローカルWindows用フォールバック
     const puppeteer = (await import("puppeteer")).default;
     browser = await puppeteer.launch({ headless: true });
   }
