@@ -1,25 +1,13 @@
-﻿import { PDFDocument, StandardFonts } from "pdf-lib";
+﻿import type { PDFDocument } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
-import path from "node:path";
-import { promises as fs } from "node:fs";
-
-const CANDIDATES = [
-  "NotoSansJP-Regular.ttf",
-  "NotoSansJP-VariableFont_wght.ttf",
-  "NotoSansJP-Regular.otf",
-  "SourceHanSansJP-Regular.otf",
-  "SourceHanSans-Regular.otf",
-];
+import fs from "fs/promises";
+import path from "path";
 
 export async function loadJapaneseFont(doc: PDFDocument) {
-  doc.registerFontkit(fontkit as any);
-  for (const name of CANDIDATES) {
-    const p = path.join(process.cwd(), "public", "fonts", name);
-    try {
-      const bytes = await fs.readFile(p);
-      return await doc.embedFont(bytes, { subset: true });
-    } catch { /* try next */ }
-  }
-  // 何も無ければ英数フォールバック（日本語は化けるので実フォントを必ず置いてください）
-  return await doc.embedFont(StandardFonts.Helvetica);
+  // 日本語が欠ける/バラける対策
+  // @ts-ignore
+  doc.registerFontkit(fontkit);
+  const p = path.join(process.cwd(), "public", "fonts", "NotoSansJP-Regular.ttf");
+  const bytes = await fs.readFile(p);
+  return await doc.embedFont(bytes, { subset: true });
 }

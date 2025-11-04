@@ -1,0 +1,132 @@
+﻿param(
+  [int]$Port = 7071,
+  [string]$TemplateDir,
+  [string]$Token = $env:PDF_AGENT_TOKEN
+)
+
+# 既定のテンプレートディレクトリ解決（PSScriptRootがnullでもOK）
+if (-not $TemplateDir) {
+  $base = if ($PSScriptRoot) { (Resolve-Path (Join-Path $PSScriptRoot '..')).Path } else { (Get-Location).Path }
+  $TemplateDir = Join-Path $base 'public\docs'
+}
+Write-Host "TemplateDir = $TemplateDir"
+
+# HttpListener 準備
+$listener = [System.Net.HttpListener]::new()
+$prefix   = "http://127.0.0.1:$Port/"
+if (-not $listener.Prefixes.Contains($prefix)) { $listener.Prefixes.Add($prefix) }
+
+# Ctrl+C で安全停止
+$script:stopping = $false
+Register-EngineEvent -SourceIdentifier ConsoleBreak -Action {
+  $script:stopping = $true
+  try { $listener.Stop(); $listener.Close() } catch {}
+} | Out-Null
+
+try {
+  $listener.Start()
+  Write-Host "PDF Agent listening on $prefix"
+
+  while (-not $script:stopping -and $listener.IsListening) {
+    # GetContext 自体を例外保護（破棄時はbreak、その他は短いバックオフ）
+    try {
+      $ctx = $listener.GetContext()
+    } catch [System.ObjectDisposedException] {
+      break
+    } catch {
+      if (-not $listener.IsListening -or $script:stopping) { break }
+      Start-Sleep -Milliseconds 200
+      continue
+    }
+
+    $doc = $null; $word = $null
+    try {
+      if ($ctx.Request.HttpMethod -ne 'POST' -or $ctx.Request.Url.AbsolutePath -ne '/render') {
+        $ctx.Response.StatusCode = 404; $ctx.Response.Close(); continue
+      }
+      if ($Token) {
+        $auth = $ctx.Request.Headers['Authorization']
+        if (-not $auth -or $auth -ne "Bearer $Token") { $ctx.Response.StatusCode = 401; $ctx.Response.Close(); continue }
+      }
+
+      # 受信 JSON
+      $reader  = [System.IO.StreamReader]::new($ctx.Request.InputStream, [System.Text.Encoding]::UTF8)
+      $raw     = $reader.ReadToEnd(); $reader.Dispose()
+      $payload = # PowerShell 5.1 互換のJSONパース
+try {
+  $payload = ConvertFrom-Json -InputObject $raw
+} catch {
+  Add-Type -AssemblyName System.Web.Extensions
+  $js = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+  $payload = $js.DeserializeObject($raw)
+}
+
+      $template = 'resume'
+      if ($payload.PSObject.Properties.Name -contains 'template' -and $payload.template) {
+        $template = $payload.template.ToString().ToLower()
+      }
+      $data = @{}
+      if ($payload.PSObject.Properties.Name -contains 'data' -and $payload.data) { $data = $payload.data }
+
+      $docxPath = if ($template -eq 'cv') {
+        Join-Path $TemplateDir 'cv\cv.docx'
+      } else {
+        Join-Path $TemplateDir 'resume\resume.docx'
+      }
+      if (-not (Test-Path $docxPath)) { throw "Template not found: $docxPath" }
+
+      function Normalize-For-Word([string]$text) {
+        if ($null -eq $text) { return '' }
+        return ($text -replace "`r?`n", '^p')
+      }
+
+      # Word 置換 → PDF
+      $word = New-Object -ComObject Word.Application
+      $word.Visible = $false
+      $doc  = $word.Documents.Open($docxPath)
+
+      $wdFindContinue = 1; $wdReplaceAll = 2
+      foreach ($p in $data.PSObject.Properties) {
+        $k = $p.Name; $v = Normalize-For-Word $p.Value
+        $range = $doc.Content
+        $find  = $range.Find
+        $find.ClearFormatting(); $find.Replacement.ClearFormatting()
+        $find.Text = "{{$k}}"
+        $find.Replacement.Text = $v
+        [void]$find.Execute([ref]$null,$false,$false,$false,$false,$false,$true,$wdFindContinue,$false,$v,$wdReplaceAll)
+      }
+
+      $tmpPdf = Join-Path $env:TEMP ("pdf_" + [guid]::NewGuid().ToString() + ".pdf")
+      $wdExportFormatPDF = 17
+      $doc.ExportAsFixedFormat($tmpPdf, $wdExportFormatPDF)
+
+      $bytes = [System.IO.File]::ReadAllBytes($tmpPdf)
+      Remove-Item $tmpPdf -Force
+
+      $ctx.Response.StatusCode = 200
+      $ctx.Response.ContentType = "application/pdf"
+      $ctx.Response.AddHeader("Content-Disposition","inline; filename=$template.pdf")
+      $ctx.Response.AddHeader("Cache-Control","no-store")
+      $ctx.Response.OutputStream.Write($bytes,0,$bytes.Length)
+      $ctx.Response.OutputStream.Close()
+    } catch {
+      try {
+        $msg = $_.Exception.Message
+        $ctx.Response.StatusCode = 500
+        $ctx.Response.ContentType = "application/json"
+        $err = [System.Text.Encoding]::UTF8.GetBytes("{`"error`":`"$msg`"}")
+        $ctx.Response.OutputStream.Write($err,0,$err.Length)
+        $ctx.Response.OutputStream.Close()
+      } catch {}
+    } finally {
+      if ($doc)  { try { $doc.Close([ref]0) | Out-Null } catch {} }
+      if ($word) { try { $word.Quit()       | Out-Null } catch {} }
+    }
+  }
+}
+finally {
+  if ($listener) { try { $listener.Stop(); $listener.Close() } catch {} }
+}
+
+
+

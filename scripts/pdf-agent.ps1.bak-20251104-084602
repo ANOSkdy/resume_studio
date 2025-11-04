@@ -1,0 +1,200 @@
+﻿param(
+  [int]$Port = 7781,
+  [string]$TemplateDir,
+  [string]$Token = $env:PDF_AGENT_TOKEN
+)
+
+if (-not $TemplateDir) {
+  $base = if ($PSScriptRoot) { (Resolve-Path (Join-Path $PSScriptRoot '..')).Path } else { (Get-Location).Path }
+  $TemplateDir = Join-Path $base 'public\docs'
+}
+Write-Host "TemplateDir = $TemplateDir"
+
+function Normalize-For-Word([string]$text) {
+  if ($null -eq $text) { return '' }
+  return ($text -replace "`r?`n", '^p')
+}
+
+function Replace-In-Range($range, $map) {
+  $wdFindContinue = 1; $wdReplaceAll = 2
+  $find = $range.Find
+  $find.ClearFormatting(); $find.Replacement.ClearFormatting()
+  $find.MatchCase         = $false
+  $find.MatchWholeWord    = $false
+  $find.MatchWildcards    = $false
+  $find.MatchSoundsLike   = $false
+  $find.MatchAllWordForms = $false
+  $find.Forward           = $true
+  $find.Wrap              = $wdFindContinue
+  $find.Format            = $false
+  try { $find.MatchByte   = $true } catch {}
+  foreach ($k in $map.Keys) {
+    $text = "{{" + $k + "}}"
+    $rep  = $map[$k]
+    $find.Text = $text
+    $find.Replacement.Text = $rep
+    [void]$find.Execute(
+      $text, $false, $false, $false, $false, $false,
+      $true,  $wdFindContinue, $false,
+      $rep,   $wdReplaceAll
+    )
+  }
+}
+
+function Replace-All-Stories($doc, $map) {
+  foreach ($rngStory in $doc.StoryRanges) {
+    $r = $rngStory
+    while ($null -ne $r) {
+      Replace-In-Range -range $r -map $map
+      $r = $r.NextStoryRange
+    }
+    try {
+      foreach ($shp in $rngStory.ShapeRange) {
+        try {
+          if ($shp.TextFrame -and $shp.TextFrame.HasText -ne 0) {
+            Replace-In-Range -range $shp.TextFrame.TextRange -map $map
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+  try {
+    foreach ($shp in $doc.Shapes) {
+      try {
+        if ($shp.TextFrame -and $shp.TextFrame.HasText -ne 0) {
+          Replace-In-Range -range $shp.TextFrame.TextRange -map $map
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
+function Get-Field($obj, $name) {
+  if ($null -eq $obj) { return $null }
+  if ($obj -is [System.Collections.IDictionary]) { return $obj[$name] }
+  elseif ($obj -is [pscustomobject]) { return $obj.$name }
+  else { return $null }
+}
+
+$listener = [System.Net.HttpListener]::new()
+$prefix   = "http://127.0.0.1:$Port/"
+if (-not $listener.Prefixes.Contains($prefix)) { $listener.Prefixes.Add($prefix) }
+
+$script:stopping = $false
+Register-EngineEvent -SourceIdentifier ConsoleBreak -Action {
+  $script:stopping = $true
+  try { $listener.Stop(); $listener.Close() } catch {}
+} | Out-Null
+
+try {
+  $listener.Start()
+  Write-Host "PDF Agent listening on $prefix"
+
+  while (-not $script:stopping -and $listener.IsListening) {
+    try { $ctx = $listener.GetContext() }
+    catch [System.ObjectDisposedException] { break }
+    catch { if (-not $listener.IsListening -or $script:stopping) { break }; Start-Sleep -m 200; continue }
+
+    $doc = $null; $word = $null
+    try {
+      if ($ctx.Request.HttpMethod -ne 'POST' -or $ctx.Request.Url.AbsolutePath -ne '/render') {
+        $ctx.Response.StatusCode = 404; $ctx.Response.Close(); continue
+      }
+      if ($Token) {
+        $auth = $ctx.Request.Headers['Authorization']
+        if (-not $auth -or $auth -ne "Bearer $Token") { $ctx.Response.StatusCode = 401; $ctx.Response.Close(); continue }
+      }
+
+      $reader  = [System.IO.StreamReader]::new($ctx.Request.InputStream, [System.Text.Encoding]::UTF8)
+      $raw     = $reader.ReadToEnd(); $reader.Dispose()
+      try { $payload = ConvertFrom-Json -InputObject $raw }
+      catch {
+        Add-Type -AssemblyName System.Web.Extensions
+        $js = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+        $payload = $js.DeserializeObject($raw)
+      }
+
+      $template = Get-Field $payload 'template'; if (-not $template) { $template = 'resume' }
+      $template = $template.ToString().ToLower()
+
+      $data = Get-Field $payload 'data'; if (-not $data) { $data = @{} }
+
+      $map = @{}
+      if ($data -is [System.Collections.IDictionary]) {
+        foreach ($entry in $data.GetEnumerator()) { $map[$entry.Key] = Normalize-For-Word $entry.Value }
+      } else {
+        foreach ($p in $data.PSObject.Properties) { $map[$p.Name] = Normalize-For-Word $p.Value }
+      }
+
+      # 診断ログ
+      $dtType = if ($data) { $data.GetType().FullName } else { "<null>" }
+      $klist  = ($map.Keys -join ",")
+      Write-Host ("[pdf-agent] template={0} dataType={1} keys=[{2}]" -f $template, $dtType, $klist)
+
+      $docxPath = if ($template -eq 'cv') {
+        Join-Path $TemplateDir 'cv\cv.docx'
+      } else {
+        Join-Path $TemplateDir 'resume\resume.docx'
+      }
+      if (-not (Test-Path $docxPath)) { throw "Template not found: $docxPath" }
+
+      $word = New-Object -ComObject Word.Application
+      $word.Visible = $false
+      $doc  = $word.Documents.Open($docxPath)
+
+      Replace-All-Stories -doc $doc -map $map
+
+      
+Force-Font-Everywhere -doc $doc -name "Meiryo"
+$tmpPdf = Join-Path $env:TEMP ("pdf_" + [guid]::NewGuid().ToString() + ".pdf")
+      $wdExportFormatPDF = 17
+      $doc.ExportAsFixedFormat($tmpPdf, $wdExportFormatPDF)
+
+      $bytes = [System.IO.File]::ReadAllBytes($tmpPdf)
+      Remove-Item $tmpPdf -Force
+
+      $ctx.Response.StatusCode = 200
+      $ctx.Response.ContentType = "application/pdf"
+      $ctx.Response.AddHeader("Content-Disposition","inline; filename=$template.pdf")
+      $ctx.Response.AddHeader("Cache-Control","no-store")
+      $ctx.Response.OutputStream.Write($bytes,0,$bytes.Length)
+      $ctx.Response.OutputStream.Close()
+    } catch {
+      try {
+        $msg = $_.Exception.Message
+        $ctx.Response.StatusCode = 500
+        $ctx.Response.ContentType = "application/json"
+        $err = [System.Text.Encoding]::UTF8.GetBytes("{`"error`":`"$msg`"}")
+        $ctx.Response.OutputStream.Write($err,0,$err.Length)
+        $ctx.Response.OutputStream.Close()
+      } catch {}
+    } finally {
+      if ($doc)  { try { $doc.Close([ref]0) | Out-Null } catch {} }
+      if ($word) { try { $word.Quit()       | Out-Null } catch {} }
+    }
+  }
+}
+finally { if ($listener) { try { $listener.Stop(); $listener.Close() } catch {} } }
+function Set-Font($font, $name) {
+  try { $font.Name = $name; $font.NameFarEast = $name; $font.NameAscii = $name } catch {}
+}
+function Apply-Font-To-Shapes($shapes, $name) {
+  foreach ($sh in $shapes) {
+    try { if ($sh.TextFrame -and $sh.TextFrame.HasText -ne 0) { Set-Font $sh.TextFrame.TextRange.Font $name } } catch {}
+    try { if ($sh.GroupItems -and $sh.GroupItems.Count -gt 0) { Apply-Font-To-Shapes $sh.GroupItems $name } } catch {}
+  }
+}
+function Force-Font-Everywhere($doc, $name) {
+  foreach ($rngStory in $doc.StoryRanges) {
+    $r = $rngStory
+    while ($null -ne $r) { try { Set-Font $r.Font $name } catch {}; $r = $r.NextStoryRange }
+  }
+  try { Apply-Font-To-Shapes $doc.Shapes $name } catch {}
+  try {
+    foreach ($sec in $doc.Sections) {
+      foreach ($hf in $sec.Headers) { try { Apply-Font-To-Shapes $hf.Shapes $name } catch {} }
+      foreach ($hf in $sec.Footers) { try { Apply-Font-To-Shapes $hf.Shapes $name } catch {} }
+    }
+  } catch {}
+}
+

@@ -1,68 +1,44 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Buffer } from "node:buffer";
-import { render as renderResumeBasic } from "../../pdf/templates/resume/basic";
-import { render as renderCvBasic } from "../../pdf/templates/cv/basic";
-import { render as renderDebug } from "../../pdf/templates/_debug";
-
-type PdfType = "resume" | "cv";
-type PdfTemplate = "basic" | string;
-type PdfRenderer = (
-  data: unknown
-) => Promise<Uint8Array | ArrayBuffer | Buffer> | Uint8Array | ArrayBuffer | Buffer;
-
-type Payload = { type?: PdfType; template?: PdfTemplate; data?: unknown; name?: string };
-
-const norm = (v: unknown) => (v == null ? "" : String(v).trim().toLowerCase());
-const normalizeType = (v: unknown): PdfType => (norm(v) === "cv" ? "cv" : "resume");
-const normalizeTemplate = (v: unknown): PdfTemplate => {
-  const s = norm(v);
-  if (!s || s === "true" || s === "false" || s === "default" || s === "std" || s === "standard") return "basic";
-  return s as PdfTemplate;
-};
+import { render as renderResume } from "../../pdf/templates/resume/basic";
+import { render as renderCv } from "../../pdf/templates/cv/basic";
+import { docxTemplateToPdf } from "../../lib/pdf/docxToPdf";
+import { htmlToPdf } from "../../lib/pdf/htmlToPdf";
+import { mapResumePlaceholders, mapCvPlaceholders } from "../../lib/pdf/mapPlaceholders";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    if (req.method !== "POST") {
-      res.status(405).json({ error: "Method Not Allowed. Use POST." });
-      return;
+    if (req.method !== "GET" && req.method !== "POST") {
+      res.setHeader("Allow", ["GET", "POST"]);
+      return res.status(405).json({ error: "Method Not Allowed" });
     }
 
-    let body: Payload | string | null = req.body as any;
-    if (typeof body === "string") { try { body = JSON.parse(body); } catch {} }
+    const q = req.query || {};
+    const body = req.method === "POST"
+      ? (typeof req.body === "string" ? JSON.parse(req.body) : req.body || {})
+      : {};
 
-    const type = normalizeType((body as any)?.type);
-    const template = normalizeTemplate((body as any)?.template);
-    const data = (body as any)?.data ?? {};
+    const template = (q.template as string) || body?.template || "resume"; // 'resume' | 'cv'
+    const source = (q.source as string) || body?.source || "pdf-lib";      // 'docx' | 'pdf-lib'
+    const data = body?.data ?? {};
 
-    const table: Record<string, PdfRenderer> = {
-      "resume:basic": renderResumeBasic,
-      "cv:basic": renderCvBasic,
-    };
+    if (source === "docx") {
+      const mapped = template === "cv" ? mapCvPlaceholders(data) : mapResumePlaceholders(data);
+      const html = await docxTemplateToPdf(template === "cv" ? "cv" : "resume", mapped);
+      const pdf = await htmlToPdf(html);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${template}.pdf"`);
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).send(Buffer.from(pdf));
+    }
 
-    const key = `${type}:${template}`;
-    const renderer = table[key] ?? renderDebug;
-
-    const payloadForTemplate = {
-      ...((typeof data === "object" && data) || {}),
-      __meta: { type, template, generatedAt: new Date().toISOString() },
-      name: (data as any)?.name ?? (body as any)?.name ?? "",
-    };
-
-    const pdfBytes = await renderer(payloadForTemplate);
-    const buf = Buffer.isBuffer(pdfBytes)
-      ? pdfBytes
-      : pdfBytes instanceof Uint8Array
-        ? Buffer.from(pdfBytes)
-        : pdfBytes instanceof ArrayBuffer
-          ? Buffer.from(new Uint8Array(pdfBytes))
-          : Buffer.alloc(0);
-
+    // 既存(pdf-lib)のテンプレも残す（fontkit登録済で日本語OK）
+    const bytes = template === "cv" ? await renderCv(data) : await renderResume(data);
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", 'inline; filename="ResumeStudio-Temp.pdf"');
+    res.setHeader("Content-Disposition", `inline; filename="${template}.pdf"`);
     res.setHeader("Cache-Control", "no-store");
-    res.status(200).send(buf);
-  } catch (e: any) {
-    console.error("[/api/pdf] error:", e);
-    res.status(500).json({ error: "PDF_RENDER_ERROR", message: String(e?.message ?? e) });
+    return res.status(200).send(Buffer.from(bytes));
+  } catch (e) {
+    console.error("[api/pdf] error:", e);
+    return res.status(500).json({ error: "PDF generation failed" });
   }
 }
