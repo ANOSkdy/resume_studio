@@ -1,21 +1,11 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { ResumeForm } from "@/components/ResumeForm";
 import { ResultScreen } from "@/components/ResultScreen";
 import { LoadingModal } from "@/components/LoadingModal";
 import { IResumeFormData } from "@/types";
-import { generatePdfAction } from "@/app/actions";
-
-function openPdfForPreview(base64Data: string) {
-  const byteCharacters = atob(base64Data);
-  const byteNumbers = Array.from(byteCharacters, c => c.charCodeAt(0));
-  const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+import { mapFormDataToResumeInput } from "@/lib/pdf/mapFormDataToResumeInput";
 
 export default function Home() {
   const [screen, setScreen] = useState<"form" | "result">("form");
@@ -36,8 +26,37 @@ export default function Home() {
     setLoadingText("PDFを生成中です...");
     setIsLoading(true);
     try {
-      const base64Pdf = await generatePdfAction(confirmedData, documentType);
-      openPdfForPreview(base64Pdf);
+      const payload = mapFormDataToResumeInput(confirmedData, documentType);
+      const res = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/pdf"
+        },
+        body: JSON.stringify(payload),
+        cache: "no-store",
+        redirect: "manual"
+      });
+
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get("location");
+        throw new Error(`Unexpected redirect to: ${location ?? "unknown"}`);
+      }
+
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!res.ok || !contentType.includes("application/pdf")) {
+        const snippet = await res.text();
+        // Surface misconfigured middleware/auth flows rather than failing silently.
+        throw new Error(
+          `PDF API ${res.status} ${res.statusText}. CT=${contentType}. Body=${snippet.slice(0, 200)}`
+        );
+      }
+
+      const arrayBuffer = await res.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (e: any) {
       console.error(e);
       alert(`PDFの生成に失敗しました。\n${e?.message || e}`);
